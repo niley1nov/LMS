@@ -1,0 +1,33 @@
+# ---- FRONTEND (React) ----
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.js
+frontend/coverage/
+frontend/build/
+frontend/.DS_Store
+
+# Environment files
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Frontend logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# ---- BACKEND (FastAPI + Python) ----
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE and system files
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# ---- Project-wide ----
+.env
+.env.*
