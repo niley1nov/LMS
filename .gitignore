@@ -32,3 +32,5 @@ __pycache__/
 # But keep the example templates
 !**/.env.production.example
 !**/.env.development.example
+
+/certs/
