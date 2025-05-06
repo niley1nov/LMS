@@ -6,11 +6,10 @@ frontend/coverage/
 frontend/build/
 frontend/.DS_Store
 
-# Environment files
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/.env.production.local
+# Environment files (ignore all, but track examples)
+frontend/.env*
+!frontend/.env.production.example     # track example
+!frontend/.env.development.example    # optional
 
 # Frontend logs
 frontend/npm-debug.log*
@@ -28,6 +27,8 @@ __pycache__/
 *.swo
 .DS_Store
 
-# ---- Project-wide ----
-.env
-.env.*
+# ---- Project-wide: ignore all real env files ----
+**/.env*
+# But keep the example templates
+!**/.env.production.example
+!**/.env.development.example

@@ -1,5 +1,10 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+env = os.getenv("ENV", "development")
+load_dotenv(f".env.{env}", override=True)
 
 app = FastAPI()
 
