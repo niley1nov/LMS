@@ -1,32 +1,22 @@
-import { useEffect, useState } from "react";
+// src/App.js
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import Home from './components/Home';
+import Login from './components/Login';
+import Signup from './components/Signup';
 
-function App() {
-  const [message, setMessage] = useState("Loading...");
-
-  // Read the API URL from env or default to localhost
-  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
-
-  useEffect(() => {
-    fetch(API_URL)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((data) => setMessage(data.message))
-      .catch((err) => {
-        console.error("Fetch error:", err);
-        setMessage("API error");
-      });
-  }, [API_URL]);
-
-  return (
-    <div style={{ textAlign: "center", marginTop: "100px" }}>
-      <h1>LMS Frontend</h1>
-      <p>Backend says: {message}</p>
+const App = () => (
+  <Router>
+    <Navbar />
+    <div style={{ paddingTop: '60px' }}>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+      </Routes>
     </div>
-  );
-}
+  </Router>
+);
 
 export default App;
