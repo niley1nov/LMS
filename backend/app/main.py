@@ -6,8 +6,14 @@ from .routes import auth
 from .deps import get_current_user
 from .database import init_db         # ← import your init helper
 import uuid
+from .routes import auth, courses
 
-app = FastAPI()
+app = FastAPI(
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+    add_exception_handlers=False
+)
 
 # ▶️ Run once on startup to create any missing tables (idempotent)
 @app.on_event("startup")
@@ -25,6 +31,7 @@ app.add_middleware(
 
 # ▶️ Routes
 app.include_router(auth.router)
+app.include_router(courses.router)
 
 @app.get("/")
 def health():
