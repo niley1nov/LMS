@@ -1,13 +1,22 @@
 // src/components/Navbar.js
 import React, { useContext, useState, useRef, useEffect } from 'react';
+import { FiMenu } from 'react-icons/fi';
 import { GoogleLogin } from '@react-oauth/google';
 import { AuthContext } from '../context/AuthContext';
 import ProfileDropdown from './ProfileDropdown';
 
+const NAVBAR_HEIGHT = 60;
+
 const navStyle = {
-  position: 'fixed', top: 0, left: 0, right: 0,
-  background: '#333', padding: '10px 20px',
-  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+  position: 'fixed',
+  top: 0, left: 0, right: 0,
+  height: `${NAVBAR_HEIGHT}px`,            // enforce exact height
+  lineHeight: `${NAVBAR_HEIGHT}px`,        // vertically center inline text
+  background: '#333',
+  padding: '0 20px',                       // remove vertical padding
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
   zIndex: 1000,
 };
 const linkStyle = {
@@ -17,7 +26,7 @@ const linkStyle = {
   cursor: 'default'
 };
 
-export default function Navbar() {
+export default function Navbar({ sidebarOpen, onToggleSidebar }) {
   const { user, setUser, logout, refreshProtected } = useContext(AuthContext);
   console.log('Navbar render — user:', user);
   const [open, setOpen] = useState(false);
@@ -64,6 +73,19 @@ export default function Navbar() {
 
   return (
     <nav style={navStyle}>
+      <button
+        onClick={onToggleSidebar}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: '#fff',
+          fontSize: '24px',
+          cursor: 'pointer',
+          marginRight: '20px'
+        }}
+      >
+        <FiMenu />
+      </button>
       <div style={linkStyle}>Home</div>
 
       <div ref={wrapperRef} style={{ position: 'relative' }}>

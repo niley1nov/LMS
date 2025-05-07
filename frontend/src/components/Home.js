@@ -2,22 +2,46 @@
 import React, { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
-const pageStyle = { textAlign: 'center', padding: '80px 20px' };
+const sectionStyle = { marginBottom: '40px', paddingTop: '20px', };
 
 export default function Home() {
   const { protectedMessage } = useContext(AuthContext);
 
   return (
-    <div style={pageStyle}>
-      <h1>Welcome to the Learning Management System</h1>
-      <p>Empower your team with interactive courses and quizzes.</p>
-      <img src="/logo192.png" alt="LMS Logo" style={{ width: '150px', margin: '20px 0' }} />
-      <p>Get started by signing up or logging in.</p>
+    <div>
+      <section id="overview" style={sectionStyle}>
+        <h2>Course Overview</h2>
+        <p>Welcome to your personalized learning journey. This course will guide you through …</p>
+      </section>
 
-      <div style={{ marginTop: '40px' }}>
-        <h2>Protected Endpoint Response:</h2>
+      <section id="modules" style={sectionStyle}>
+        <h2>Modules</h2>
+        <ul>
+          <li>Module 1: Getting Started</li>
+          <li>Module 2: Intermediate Concepts</li>
+          <li>Module 3: Advanced Techniques</li>
+        </ul>
+      </section>
+
+      <section id="quizzes" style={sectionStyle}>
+        <h2>Quizzes</h2>
+        <p>Test your knowledge with periodic quizzes after each module.</p>
+      </section>
+
+      <section id="resources" style={sectionStyle}>
+        <h2>Resources</h2>
+        <p>Downloadable materials, slides, and reference guides.</p>
+      </section>
+
+      <section id="help" style={sectionStyle}>
+        <h2>Help & Support</h2>
+        <p>If you run into any issues, reach out to our support team at support@example.com.</p>
+      </section>
+
+      <section>
+        <h2>Your Access Status</h2>
         <p>{protectedMessage}</p>
-      </div>
+      </section>
     </div>
   );
 }
