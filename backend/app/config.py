@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 env = os.getenv("ENV", "development")
 load_dotenv(f".env.{env}", override=True)
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_ID  = os.getenv("GOOGLE_CLIENT_ID")
 JWT_SECRET        = os.getenv("JWT_SECRET", "supersecret")
 JWT_ALGORITHM     = os.getenv("JWT_ALGORITHM", "HS256")
 FRONTEND_URL      = os.getenv("FRONTEND_URL")

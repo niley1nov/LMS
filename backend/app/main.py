@@ -5,6 +5,7 @@ from .config import get_origins
 from .routes import auth
 from .deps import get_current_user
 from .database import init_db         # ← import your init helper
+import uuid
 
 app = FastAPI()
 
@@ -31,5 +32,9 @@ def health():
 
 @app.get("/protected")
 def protected(user=Depends(get_current_user)):
-    name = user.get('name') or user.get('email')
-    return {"message": f"Hello {name}, you have access!"}
+    name = user.get("name") or user.get("email")
+    random_suffix = uuid.uuid4().hex[:8]
+    return {
+        "message": f"Hello {name}, you have access! — {random_suffix}"
+    }
+
