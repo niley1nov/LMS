@@ -6,6 +6,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
+import { CoursesProvider } from "./context/CoursesContext.jsx";
 
 // Create a custom Material UI theme
 const theme = createTheme({
@@ -20,12 +21,12 @@ const theme = createTheme({
 
 createRoot(document.getElementById("root")).render(
   <ThemeProvider theme={theme}>
-    {/* Normalize CSS and apply baseline */}
     <CssBaseline />
-
     <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}>
       <AuthProvider>
-        <App />
+        <CoursesProvider>
+          <App />
+        </CoursesProvider>
       </AuthProvider>
     </GoogleOAuthProvider>
   </ThemeProvider>

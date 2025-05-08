@@ -6,60 +6,46 @@ export const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [initialized, setInitialized] = useState(false);
-  const [protectedMessage, setProtectedMessage] = useState(
-    "Loading protected data..."
-  );
 
   const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
-  // On mount, check session and load protected data
+  const fetchUserDetails = async () => {
+    const response = await fetch(`${API_URL}/me`, { credentials: "include" });
+    if (!response.ok) {
+      throw new Error("Not authenticated");
+    }
+    return response.json();
+  };
+
+  // On mount, check session by calling /me
   useEffect(() => {
-    fetch(`${API_URL}/protected`, { credentials: "include" })
-      .then((res) => {
-        if (!res.ok) throw new Error("Not authenticated");
-        return res.json();
-      })
-      .then((data) => {
-        // parse user out of data.message if needed, or call /me
-        setUser(
-          (prev) => prev || { name: data.message.match(/^Hello ([^,]+)/)[1] }
-        );
-        setProtectedMessage(data.message);
-      })
-      .catch(() => {
-        setUser(null);
-        setProtectedMessage("Not authenticated or error fetching data");
-      })
-      .finally(() => {
-        setInitialized(true);
-      });
+    fetchUserDetails()
+      .then(data => setUser({ id: data.id, email: data.email, name: data.name }))
+      .catch(() => setUser(null))
+      .finally(() => setInitialized(true));
   }, [API_URL]);
 
-  // whenever user logs in or out, re-fetch protected data
-  const refreshProtected = () => {
-    fetch(`${API_URL}/protected`, { credentials: "include" })
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then((data) => setProtectedMessage(data.message))
-      .catch(() =>
-        setProtectedMessage("Not authenticated or error fetching data")
-      );
+  // Refresh user details after login or logout
+  const refreshUser = () => {
+    fetchUserDetails()
+      .then(data => setUser({ id: data.id, email: data.email, name: data.name }))
+      .catch(() => setUser(null));
   };
 
-  const logout = () => {
-    fetch(`${API_URL}/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-    }).then(() => {
+  const logout = async () => {
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (error) {
+      console.error("Logout failed:", error); // Optional: handle logout error
+    } finally {
       setUser(null);
-      refreshProtected();
-    });
+    }
   };
 
-  // After login (in your Navbar’s handleSuccess), do:
-  // setUser(data.user); refreshProtected();
+  // After login elsewhere, call setUser(...) then refreshUser()
 
   if (!initialized) return null;
 
@@ -69,8 +55,7 @@ export function AuthProvider({ children }) {
         user,
         setUser,
         logout,
-        protectedMessage,
-        refreshProtected,
+        refreshUser,
       }}
     >
       {children}

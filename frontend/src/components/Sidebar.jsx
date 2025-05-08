@@ -14,7 +14,7 @@ const navItems = [
   { label: "Help & Support", href: "#help" },
 ];
 
-export default function Sidebar({ isOpen, onClose }) {
+function Sidebar({ isOpen, onClose }) {
   return (
     <Drawer
       anchor="left"
@@ -42,3 +42,5 @@ export default function Sidebar({ isOpen, onClose }) {
     </Drawer>
   );
 }
+
+export default Sidebar;

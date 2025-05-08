@@ -1,10 +1,12 @@
 # File: backend/app/routes/auth.py (update upsert_user)
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.responses import Response
 from pydantic import BaseModel
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+from ..deps import get_current_user
 import jwt
+from ..schemas import UserOut, UserBase
 from ..config import GOOGLE_CLIENT_ID, JWT_SECRET, JWT_ALGORITHM, env
 from ..database import SessionLocal
 from ..models import User
@@ -14,7 +16,7 @@ router = APIRouter()
 class GoogleToken(BaseModel):
     token: str
 
-@router.post("/auth/google")
+@router.post("/auth/google", response_model=UserOut)
 async def google_auth(payload: GoogleToken, response: Response):
     try:
         idinfo = id_token.verify_oauth2_token(
@@ -57,7 +59,7 @@ async def google_auth(payload: GoogleToken, response: Response):
         max_age=3600,  # 1 hour
         path="/"
     )
-    return {'user': {'id': user_id, 'email': email, 'name': name}}
+    return user
 
 @router.post("/auth/logout")
 def logout():
@@ -72,3 +74,11 @@ def logout():
         samesite="none",             # same as when you set it
     )
     return resp
+
+@router.get("/me", response_model=UserBase) # Changed response_model to UserBase
+def read_current_user(user: dict = Depends(get_current_user)):
+    return UserBase(
+        id=int(user.get("sub")),
+        email=user.get("email"),
+        name=user.get("name")
+    )

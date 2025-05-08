@@ -1,7 +1,8 @@
-// src/components/Navbar.js
+// src/components/Navbar.jsx
 import React, { useContext, useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 import { AuthContext } from "../context/AuthContext.jsx";
+import { CoursesContext } from "../context/CoursesContext.jsx";
 import ProfileDropdown from "./ProfileDropdown.jsx";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
@@ -12,7 +13,8 @@ import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
 
 export default function Navbar({ sidebarOpen, onToggleSidebar }) {
-  const { user, setUser, logout, refreshProtected } = useContext(AuthContext);
+  const { user, setUser, logout } = useContext(AuthContext);
+  const { courses } = useContext(CoursesContext);
   const [anchorEl, setAnchorEl] = useState(null);
   const menuOpen = Boolean(anchorEl);
 
@@ -29,9 +31,8 @@ export default function Navbar({ sidebarOpen, onToggleSidebar }) {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then((data) => {
-        setUser(data.user);
-        refreshProtected();
+      .then((userData) => {
+        setUser(userData);
       })
       .catch(console.error);
   };
@@ -67,7 +68,7 @@ export default function Navbar({ sidebarOpen, onToggleSidebar }) {
           component="div"
           sx={{ flexGrow: 1, textAlign: "center" }}
         >
-          Home
+          Home ({courses.length})
         </Typography>
 
         <Box>
