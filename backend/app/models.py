@@ -1,53 +1,90 @@
+# backend/app/models.py
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum as SQLAlchemyEnum
+from sqlalchemy.dialects.postgresql import UUID # Import UUID type for PostgreSQL
+import uuid # Python's uuid module for default generation
 from sqlalchemy.orm import relationship
 from .database import Base # Assuming your Base is defined in database.py
 import enum # Standard Python enum
 
-# Define the Role enum using Python's enum class
-# This will be used by SQLAlchemy's Enum type
+# --- Enums ---
 class UserRoleEnum(enum.Enum):
     admin = "admin"
     teacher = "teacher"
     student = "student"
 
-# Association table for the many-to-many relationship
-# between Users and Courses, including the role.
+class UnitTypeEnum(enum.Enum):
+    MATERIAL = "material"
+    ASSIGNMENT = "assignment"
+    QUIZ = "quiz"
+    VIDEO = "video"
+    DISCUSSION = "discussion"
+    EXTERNAL_LINK = "external_link"
+
+# --- Association Table (UserCourse) ---
 class UserCourse(Base):
     __tablename__ = "user_courses"
 
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
-    course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), primary_key=True)
-    # Use SQLAlchemyEnum, linking to the Python enum and specifying native enum options for PostgreSQL
-    role = Column(SQLAlchemyEnum(UserRoleEnum, name="user_course_role", create_type=True), nullable=False)
+    # Course ID in this table will now be a UUID to match Course.id
+    course_id = Column(UUID(as_uuid=True), ForeignKey("courses.id", ondelete="CASCADE"), primary_key=True)
+    # create_type=False because the ENUM type 'user_course_role' is created by your DDL
+    role = Column(SQLAlchemyEnum(UserRoleEnum, name="user_course_role", create_type=False), nullable=False)
 
-    # Relationships to easily access User and Course from a UserCourse instance
     user = relationship("User", back_populates="course_associations")
     course = relationship("Course", back_populates="user_associations")
 
+# --- Main Tables ---
 class User(Base):
     __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    google_sub = Column(String, unique=True, index=True, nullable=False) # Assuming this was intended
-    email = Column(String, unique=True, index=True, nullable=False)
-    name = Column(String, nullable=True)
+    id = Column(Integer, primary_key=True, index=True) # User ID can remain integer
+    google_sub = Column(String(255), unique=True, index=True, nullable=False)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    name = Column(String(255), nullable=True)
 
-    # Relationship to UserCourse (one-to-many: one User can have many entries in UserCourse)
-    # This allows us to get all (course, role) pairs for a user.
     course_associations = relationship("UserCourse", back_populates="user", cascade="all, delete-orphan")
-
-    # If you want a direct list of Course objects for a user (without easily getting the role directly from here):
-    # courses = relationship("Course", secondary="user_courses", back_populates="users")
-    # However, using course_associations is more explicit for getting roles.
 
 class Course(Base):
     __tablename__ = 'courses'
-    id = Column(Integer, primary_key=True, index=True)
+    # Change primary key to UUID
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     name = Column(Text, nullable=False)
-    description = Column(Text, nullable=False)
+    description = Column(Text, nullable=True) # Matches your DDL (was NOT NULL in your schema output)
 
-    # Relationship to UserCourse (one-to-many: one Course can have many entries in UserCourse)
-    # This allows us to get all (user, role) pairs for a course.
     user_associations = relationship("UserCourse", back_populates="course", cascade="all, delete-orphan")
+    modules = relationship(
+        "Module",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        order_by="Module.order"
+    )
 
-    # If you want a direct list of User objects for a course:
-    # users = relationship("User", secondary="user_courses", back_populates="courses")
+class Module(Base):
+    __tablename__ = "modules"
+    id = Column(Integer, primary_key=True, index=True) # Module ID can remain integer for now
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True) # Using Text for consistency
+    order = Column(Integer, nullable=False, default=0)
+
+    # Course ID in this table will now be a UUID
+    course_id = Column(UUID(as_uuid=True), ForeignKey("courses.id"), nullable=False)
+    course = relationship("Course", back_populates="modules")
+
+    units = relationship(
+        "Unit",
+        back_populates="module",
+        cascade="all, delete-orphan",
+        order_by="Unit.order"
+    )
+
+class Unit(Base):
+    __tablename__ = "units"
+    id = Column(Integer, primary_key=True, index=True) # Unit ID can remain integer
+    title = Column(String(255), nullable=False)
+    # Explicitly state that the 'unit_type' attribute maps to the database column named 'type'.
+    # create_type=False because the ENUM type 'unit_type_enum' is created by your DDL
+    unit_type = Column("type", SQLAlchemyEnum(UnitTypeEnum, name="unit_type_enum", create_type=False), nullable=False)
+    content = Column(Text, nullable=True)
+    order = Column(Integer, nullable=False, default=0)
+
+    module_id = Column(Integer, ForeignKey("modules.id"), nullable=False)
+    module = relationship("Module", back_populates="units")

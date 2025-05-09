@@ -1,6 +1,7 @@
 # File: backend/app/routes/courses.py
-from fastapi import APIRouter, Depends, HTTPException # Query removed if target_user_id is removed
+from fastapi import APIRouter, Depends, HTTPException, status # Query removed if target_user_id is removed
 from sqlalchemy.orm import Session, joinedload, selectinload
+import uuid
 from typing import List # Optional removed if target_user_id is removed
 
 from ..database import SessionLocal
@@ -75,39 +76,80 @@ def list_my_courses( # Consider renaming if you prefer, e.g. list_my_courses
 # to access this endpoint (you might add more specific authorization logic later if needed).
 @router.get("/{course_id}", response_model=schemas.CourseOut)
 def get_course(
-    course_id: int,
+    course_id: uuid.UUID, # <<<--- CORRECTED TYPE HINT TO uuid.UUID
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user) # Auth check
+    current_user_payload: dict = Depends(get_current_user)
 ):
+    """
+    Fetch a single course by its ID, including its associated users,
+    modules (ordered by 'order'), and units (ordered by 'order') within each module.
+    """
+    print(f"--- Fetching course with UUID: {course_id} (type: {type(course_id)}) ---") # Log input
+
+    # This query now correctly compares a UUID column with a UUID path parameter
     course = db.query(models.Course)\
-        .options(selectinload(models.Course.user_associations).joinedload(models.UserCourse.user))\
+        .options(
+            selectinload(models.Course.user_associations).joinedload(models.UserCourse.user),
+            selectinload(models.Course.modules).selectinload(models.Module.units)
+        )\
         .filter(models.Course.id == course_id)\
         .first()
 
+    print(f"--- SQLAlchemy course object fetched: {course} ---") # Log the raw ORM object
+
     if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
+        print(f"--- Course with UUID {course_id} not found in database. ---")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
 
-    # Check if the current user is actually part of this course if that's a requirement
-    # For example:
-    # if not any(assoc.user_id == current_user.id for assoc in course.user_associations):
-    #     raise HTTPException(status_code=403, detail="Not authorized to view this course details")
-    # This is an optional, more granular authorization step.
+    # --- Logging related objects before Pydantic conversion ---
+    if course:
+        print(f"Course ID: {course.id} (type: {type(course.id)})")
+        print(f"Course Name: {course.name}")
+        print(f"Course Description: {course.description}")
 
-    users_for_course = []
-    for assoc in course.user_associations:
-        users_for_course.append(schemas.UserForCourseResponse(
-            id=assoc.user.id,
-            email=assoc.user.email,
-            name=assoc.user.name,
-            role=assoc.role.value
-        ))
+        print("--- User Associations ---")
+        if course.user_associations:
+            for i, assoc in enumerate(course.user_associations):
+                print(f"  Assoc {i+1}: User ID: {assoc.user_id}, Role: {assoc.role}, User Name: {assoc.user.name if assoc.user else 'N/A'}")
+        else:
+            print("  No user associations found.")
+
+        print("--- Modules ---")
+        if course.modules:
+            for i, module in enumerate(course.modules):
+                print(f"  Module {i+1}: ID: {module.id}, Title: {module.title}, Order: {module.order}")
+                print("    --- Units ---")
+                if module.units:
+                    for j, unit in enumerate(module.units):
+                        # Accessing unit_type which maps to 'type' in DB
+                        print(f"      Unit {j+1}: ID: {unit.id}, Title: {unit.title}, Type: {unit.unit_type}, Order: {unit.order}")
+                else:
+                    print("      No units found for this module.")
+        else:
+            print("  No modules found for this course.")
     
-    return schemas.CourseOut(
-        id=course.id,
-        name=course.name,
-        description=course.description,
-        users=users_for_course # Lists all users for this specific course
-    )
+    # Optional: Authorization check (ensure user_id_from_token is handled correctly)
+    user_id_from_token_str = current_user_payload.get("sub")
+    if not user_id_from_token_str:
+        # This should ideally be caught by get_current_user if token is invalid
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token: User subject missing.")
+    try:
+        user_id_from_token = int(user_id_from_token_str)
+        is_enrolled = any(assoc.user_id == user_id_from_token for assoc in course.user_associations)
+        if not is_enrolled:
+            # Add more sophisticated role-based access if needed (e.g., admin/teacher override)
+            # print(f"--- Authorization Failed: User {user_id_from_token} not enrolled in course {course_id} ---")
+            # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this course.")
+            pass # Temporarily bypassing auth check for debugging Pydantic issue
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user ID format in token.")
+    except AttributeError: # In case course.user_associations is None (should not happen with selectinload)
+        print("--- Error accessing user_associations, it might be None ---")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error processing course data.")
+
+
+    print("--- Attempting to return course object for Pydantic serialization ---")
+    return course
 
 # POST /enroll endpoint can remain as is, current_user can be used for authorization
 # (e.g. only an admin or teacher can enroll others, or users can enroll themselves)
@@ -150,3 +192,93 @@ def enroll_user_in_course(
     db.commit()
     db.refresh(db_user_course)
     return db_user_course
+
+@router.post("", response_model=schemas.CourseOut, status_code=status.HTTP_201_CREATED)
+def create_course(
+    course_in: schemas.CourseCreate,
+    db: Session = Depends(get_db),
+    current_user_payload: dict = Depends(get_current_user) # JWT payload
+):
+    """
+    Create a new course. The creator is automatically enrolled as a teacher.
+    """
+    creator_id_str = current_user_payload.get("sub")
+    if not creator_id_str:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not identify user from token."
+        )
+    
+    try:
+        creator_id = int(creator_id_str)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid user ID format in token."
+        )
+
+    # Check if user exists (optional, but good practice if sub claim could be stale)
+    creator = db.query(models.User).filter(models.User.id == creator_id).first()
+    if not creator:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Creator user with ID {creator_id} not found."
+        )
+
+    # Create the new course
+    db_course = models.Course(name=course_in.name, description=course_in.description)
+    db.add(db_course)
+    
+    try:
+        db.flush() # Flush to get the db_course.id before creating the association
+
+        # Associate the creator with the course as a teacher
+        user_course_association = models.UserCourse(
+            user_id=creator_id,
+            course_id=db_course.id,
+            role=schemas.Role.TEACHER # Use the Role enum from your schemas
+        )
+        db.add(user_course_association)
+        
+        db.commit()
+        db.refresh(db_course) # Refresh to load relationships like user_associations
+        
+        # Manually construct the CourseOut to include the creator in the 'users' list
+        # This is because db_course.user_associations might not be immediately populated
+        # in the way CourseOut expects without another query or careful session management.
+        # For simplicity, we'll build it based on what we know.
+        
+        # Re-fetch the course with its associations to ensure the response is complete
+        # This is the most reliable way to populate CourseOut correctly after creation.
+        populated_course = db.query(models.Course)\
+            .options(selectinload(models.Course.user_associations).joinedload(models.UserCourse.user))\
+            .filter(models.Course.id == db_course.id)\
+            .first()
+
+        if not populated_course: # Should not happen if commit was successful
+             raise HTTPException(status_code=500, detail="Failed to retrieve course after creation.")
+
+        users_for_response = []
+        for assoc in populated_course.user_associations:
+            users_for_response.append(schemas.UserForCourseResponse(
+                id=assoc.user.id,
+                email=assoc.user.email,
+                name=assoc.user.name,
+                role=assoc.role.value
+            ))
+
+        return schemas.CourseOut(
+            id=populated_course.id,
+            name=populated_course.name,
+            description=populated_course.description,
+            users=users_for_response
+        )
+
+    except Exception as e:
+        db.rollback()
+        # Log the error e for server-side debugging
+        # print(f"Error creating course: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while creating the course."
+        )

@@ -1,68 +1,97 @@
-from pydantic import BaseModel
-from enum import Enum as PyEnum # Python's enum, aliased to avoid confusion if you import SQLA Enum
+# backend/app/schemas.py
+from pydantic import BaseModel, Field
+from enum import Enum as PyEnum
 from typing import List, Optional
+import uuid # Import Python's uuid module
 
-# 1. Define the Role Enum (matches UserRoleEnum in models.py)
+# --- Enums ---
 class Role(str, PyEnum):
     ADMIN = "admin"
     TEACHER = "teacher"
     STUDENT = "student"
 
-# 2. Base schemas for User and Course
-class UserBase(BaseModel):
-    id: int
-    email: str
-    name: Optional[str] = None # Match model where name is nullable
+class UnitType(str, PyEnum):
+    MATERIAL = "material"
+    ASSIGNMENT = "assignment"
+    QUIZ = "quiz"
+    VIDEO = "video"
+    DISCUSSION = "discussion"
+    EXTERNAL_LINK = "external_link"
 
+# --- Base Schemas ---
+class UserBase(BaseModel):
+    id: int # User ID remains int
+    email: str
+    name: Optional[str] = None
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class CourseBase(BaseModel):
-    id: int
+    id: uuid.UUID # <<<--- CORRECTED TO UUID
     name: str
-    description: str
-
+    description: Optional[str] = None
     class Config:
-        orm_mode = True
+        from_attributes = True
 
-# 3. Schemas for representing the relationship in nested structures
+class ModuleBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    order: Optional[int] = 0
+    class Config:
+        from_attributes = True
 
-# Represents a user linked to a course, including their role in that course.
+class UnitBase(BaseModel):
+    title: str
+    unit_type: UnitType = Field(..., alias="type") # Maps to 'type' in JSON
+    content: Optional[str] = None
+    order: Optional[int] = 0
+    class Config:
+        from_attributes = True
+        populate_by_name = True # Important for alias to work both ways
+
+# --- Schemas for Creation ---
+class CourseCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class ModuleCreate(ModuleBase):
+    # course_id: uuid.UUID # If creating standalone and need to pass course_id
+    pass
+
+class UnitCreate(UnitBase):
+    # module_id: int # If creating standalone and need to pass module_id
+    pass
+
+# --- Schemas for Output ---
+class UnitOut(UnitBase):
+    id: int
+
+class ModuleOut(ModuleBase):
+    id: int
+    units: List[UnitOut] = []
+
 class UserForCourseResponse(UserBase):
     role: Role
 
-# Represents a course linked to a user, including the user's role in that course.
-class CourseForUserResponse(CourseBase):
+class CourseOut(CourseBase): # CourseBase now has id: uuid.UUID
+    users: List[UserForCourseResponse] = []
+    modules: List[ModuleOut] = []
+
+class CourseForUserResponse(CourseBase): # CourseBase now has id: uuid.UUID
     role: Role
 
-# 4. Main output schemas
 class UserOut(UserBase):
-    # List of courses the user is associated with, including their role in each.
-    # This will be populated from User.course_associations
     courses: List[CourseForUserResponse] = []
 
-    class Config:
-        orm_mode = True # Ensure this is here if not inherited properly or if UserBase doesn't have it
-
-class CourseOut(CourseBase):
-    # List of users associated with the course, including their role in this course.
-    # This will be populated from Course.user_associations
-    users: List[UserForCourseResponse] = []
-
-    class Config:
-        orm_mode = True # Ensure this is here
-
-# 5. Schema for the junction table link (UserCourse) - useful for direct operations or debugging
+# --- Schemas for Junction Table & Links ---
 class UserCourseLink(BaseModel):
     user_id: int
-    course_id: int
+    course_id: uuid.UUID # <<<--- CORRECTED TO UUID
     role: Role
-
     class Config:
-        orm_mode = True
+        from_attributes = True
 
-# Schema for creating a link (e.g., enrolling a user in a course)
 class UserCourseCreate(BaseModel):
     user_id: int
-    course_id: int
+    course_id: uuid.UUID # <<<--- CORRECTED TO UUID
     role: Role

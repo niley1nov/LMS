@@ -2,7 +2,6 @@
 import React, { useContext, useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 import { AuthContext } from "../context/AuthContext.jsx";
-import { CoursesContext } from "../context/CoursesContext.jsx";
 import ProfileDropdown from "./ProfileDropdown.jsx";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
@@ -14,7 +13,6 @@ import Avatar from "@mui/material/Avatar";
 
 export default function Navbar({ sidebarOpen, onToggleSidebar }) {
   const { user, setUser, logout } = useContext(AuthContext);
-  const { courses } = useContext(CoursesContext);
   const [anchorEl, setAnchorEl] = useState(null);
   const menuOpen = Boolean(anchorEl);
 
@@ -68,7 +66,7 @@ export default function Navbar({ sidebarOpen, onToggleSidebar }) {
           component="div"
           sx={{ flexGrow: 1, textAlign: "center" }}
         >
-          Home ({courses.length})
+          Home
         </Typography>
 
         <Box>

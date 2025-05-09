@@ -7,6 +7,7 @@ import Navbar from "./components/Navbar.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import Home from "./components/Home.jsx";
 import CourseDetail from "./components/CourseDetail.jsx";
+import CreateCourseForm from "./components/CreateCourseForm.jsx";
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -31,6 +32,7 @@ function App() {
         >
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/courses/new" element={<CreateCourseForm />} />
             <Route path="/courses/:id" element={<CourseDetail />} />
           </Routes>
         </Box>
