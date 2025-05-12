@@ -1,6 +1,10 @@
 // src/components/CourseDetail.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react"; // Removed useState
 import { useParams } from "react-router-dom";
+// 1. Import Redux hooks and actions
+import { useDispatch, useSelector } from "react-redux";
+import { fetchCourseById, clearSelectedCourse, clearSelectedCourseError } from "../redux/coursesSlice"; // Ensure correct path
+
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
@@ -13,76 +17,59 @@ import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import CircularProgress from '@mui/material/CircularProgress'; // For loading state
-import Alert from '@mui/material/Alert'; // For error messages
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
 
-// Icons for different unit types
-import ArticleIcon from '@mui/icons-material/Article'; // For MATERIAL
-import AssignmentIcon from '@mui/icons-material/Assignment'; // For ASSIGNMENT
-import OndemandVideoIcon from '@mui/icons-material/OndemandVideo'; // For VIDEO
-import QuizIcon from '@mui/icons-material/Quiz'; // For QUIZ
-import ForumIcon from '@mui/icons-material/Forum'; // For DISCUSSION
-import LinkIcon from '@mui/icons-material/Link'; // For EXTERNAL_LINK
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline'; // Default
+// Icons
+import ArticleIcon from '@mui/icons-material/Article';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import OndemandVideoIcon from '@mui/icons-material/OndemandVideo';
+import QuizIcon from '@mui/icons-material/Quiz';
+import ForumIcon from '@mui/icons-material/Forum';
+import LinkIcon from '@mui/icons-material/Link';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 
 export default function CourseDetail() {
-  const { id } = useParams();
-  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
-  const [course, setCourse] = useState(null);
-  const [loading, setLoading] = useState(true); // Start with loading true
-  const [error, setError] = useState(null);
+  const { id: courseId } = useParams(); // Get courseId from URL params
+  const dispatch = useDispatch();
+
+  // 2. Get state from Redux store using specific selectors for clarity
+  const { 
+    selectedCourse, 
+    selectedCourseLoading: loading, // Use specific loading state from slice
+    selectedCourseError: error     // Use specific error state from slice
+  } = useSelector((state) => state.courses);
+  
+  // Optional: get auth state if needed for conditional rendering within this component
+  // const { isAuthenticated, user, loading: authLoading } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-    fetch(`${API_URL}/courses/${id}`, {
-      credentials: "include",
-    })
-      .then(async (res) => { // Make async to await res.json() in error case
-        if (!res.ok) {
-          let errorMsg = `HTTP error ${res.status}`;
-          try {
-            const errorData = await res.json();
-            errorMsg = errorData.detail || errorMsg;
-          } catch (e) {
-            // Ignore if response is not JSON
-          }
-          throw new Error(errorMsg);
-        }
-        return res.json();
-      })
-      .then((data) => {
-        console.log(data);
-        setCourse(data);
-      })
-      .catch((err) => {
-        setError(err.message);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [API_URL, id]);
+    if (courseId) {
+      dispatch(clearSelectedCourseError()); // Clear previous errors for this specific view
+      dispatch(fetchCourseById(courseId));
+    }
+    // Cleanup function to clear selected course when component unmounts or courseId changes
+    return () => {
+      dispatch(clearSelectedCourse());
+    };
+  }, [dispatch, courseId]); // Re-fetch if courseId changes
 
   const getUnitIcon = (unitType) => {
-    switch (unitType?.toUpperCase()) { // Added optional chaining and toUpperCase for safety
-      case 'MATERIAL':
-        return <ArticleIcon />;
-      case 'ASSIGNMENT':
-        return <AssignmentIcon />;
-      case 'VIDEO':
-        return <OndemandVideoIcon />;
-      case 'QUIZ':
-        return <QuizIcon />;
-      case 'DISCUSSION':
-        return <ForumIcon />;
-      case 'EXTERNAL_LINK':
-        return <LinkIcon />;
-      default:
-        return <HelpOutlineIcon />;
+    // The backend JSON response should have "type" due to Pydantic alias.
+    // So, unit.type is correct here.
+    switch (unitType?.toUpperCase()) { 
+      case 'MATERIAL': return <ArticleIcon />;
+      case 'ASSIGNMENT': return <AssignmentIcon />;
+      case 'VIDEO': return <OndemandVideoIcon />;
+      case 'QUIZ': return <QuizIcon />;
+      case 'DISCUSSION': return <ForumIcon />;
+      case 'EXTERNAL_LINK': return <LinkIcon />;
+      default: return <HelpOutlineIcon />;
     }
   };
 
-  if (loading) {
+  // Use the specific loading state from the courses slice
+  if (loading === 'pending') {
     return (
       <Container sx={{ py: 4, textAlign: 'center' }}>
         <CircularProgress />
@@ -91,23 +78,38 @@ export default function CourseDetail() {
     );
   }
 
-  if (error) {
+  // Use the specific error state
+  if (error && loading === 'failed') {
     return (
       <Container sx={{ py: 4 }}>
-        <Alert severity="error">Error loading course: {error}</Alert>
+        <Alert severity="error">Error loading course: {typeof error === 'string' ? error : "An unknown error occurred."}</Alert>
       </Container>
     );
   }
 
-  if (!course) {
-    // This case should ideally not be reached if loading and error are handled,
-    // but as a fallback:
+  // If loading succeeded but no course was found (e.g., 404 from backend, handled by thunk)
+  if (!selectedCourse && loading === 'succeeded') {
     return (
       <Container sx={{ py: 4 }}>
-        <Typography>Course not found.</Typography>
+        <Alert severity="warning">Course not found.</Alert>
       </Container>
     );
   }
+  
+  // Fallback if still no course (e.g., initial render before loading has properly started and set to 'pending')
+  // This check might be redundant if the loading === 'pending' check above is sufficient
+  if (!selectedCourse) { 
+      return (
+          <Container sx={{ py: 4, textAlign: 'center' }}>
+            {/* Can show a more subtle loader or placeholder here if preferred over just text */}
+            {/* <Typography>Preparing course data...</Typography> */}
+            <CircularProgress size={24} /> 
+          </Container>
+      );
+  }
+
+  // At this point, selectedCourse should be available
+  const course = selectedCourse;
 
   return (
     <Container sx={{ py: 4 }}>
@@ -127,11 +129,11 @@ export default function CourseDetail() {
           course.modules.map((module, moduleIndex) => (
             <Accordion 
               key={module.id} 
-              defaultExpanded={moduleIndex === 0} // Expand the first module by default
+              defaultExpanded={moduleIndex === 0}
               sx={{ 
                 mb: 2, 
-                '&:before': { display: 'none' }, // Remove default top border
-                boxShadow: '0px 3px 15px rgba(0,0,0,0.1)', // Softer shadow
+                '&:before': { display: 'none' },
+                boxShadow: '0px 3px 15px rgba(0,0,0,0.1)',
                 borderRadius: '8px',
               }}
             >
@@ -140,19 +142,17 @@ export default function CourseDetail() {
                 aria-controls={`module-${module.id}-content`}
                 id={`module-${module.id}-header`}
                 sx={{ 
-                  backgroundColor: 'primary.main', // Use theme primary color
+                  backgroundColor: 'primary.light',
                   color: 'primary.contrastText',
                   borderTopLeftRadius: '8px',
                   borderTopRightRadius: '8px',
-                  borderBottomLeftRadius: module.units && module.units.length > 0 ? '0px' : '8px', // Keep rounded if no units
+                  borderBottomLeftRadius: module.units && module.units.length > 0 ? '0px' : '8px',
                   borderBottomRightRadius: module.units && module.units.length > 0 ? '0px' : '8px',
-                  '& .MuiAccordionSummary-content': {
-                    my: 1.5 // More padding inside summary
-                  }
+                  '& .MuiAccordionSummary-content': { my: 1.5 }
                 }}
               >
                 <Typography variant="h6" component="div" sx={{ fontWeight: 500 }}>
-                  {`Module ${module.order || moduleIndex + 1}: ${module.title}`}
+                  {`Module ${module.order !== undefined ? module.order : moduleIndex + 1}: ${module.title}`}
                 </Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ p: 0, border: '1px solid', borderColor: 'divider', borderTop: 'none', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px' }}>
@@ -166,29 +166,19 @@ export default function CourseDetail() {
                     {module.units.map((unit, unitIndex) => (
                       <ListItem 
                         key={unit.id} 
-                        divider={unitIndex < module.units.length - 1} // Add divider except for the last item
-                        sx={{ 
-                            py: 1.5, 
-                            px: 2,
-                            '&:hover': { backgroundColor: 'action.hover' } 
-                        }}
-                        // component="a" href={unit.unit_type === 'EXTERNAL_LINK' ? unit.content : '#'} target="_blank" rel="noopener noreferrer" // Example: make link clickable
+                        divider={unitIndex < module.units.length - 1}
+                        sx={{ py: 1.5, px: 2, '&:hover': { backgroundColor: 'action.hover' } }}
                       >
                         <ListItemIcon sx={{ minWidth: 40 }}>
-                          {getUnitIcon(unit.type)} 
-                          {/* The backend sends 'type', Pydantic schema aliases it to 'unit_type'.
-                              If your frontend receives 'type', use unit.type.
-                              If your frontend receives 'unit_type' (after Pydantic alias), use unit.unit_type.
-                              Based on your schemas.py (UnitBase: unit_type: UnitType = Field(..., alias="type")),
-                              the JSON response from FastAPI should have "type" as the key.
-                          */}
+                          {getUnitIcon(unit.type)} {/* Assuming API returns 'type' */}
                         </ListItemIcon>
                         <ListItemText 
-                          primary={`${unit.order || unitIndex + 1}. ${unit.title}`} 
-                          secondary={unit.content && unit.unit_type !== 'EXTERNAL_LINK' ? `Content: ${unit.content.substring(0,100)}${unit.content.length > 100 ? '...' : ''}` : (unit.unit_type === 'EXTERNAL_LINK' ? unit.content : null)}
+                          primary={`${unit.order !== undefined ? unit.order : unitIndex + 1}. ${unit.title}`} 
+                          secondary={unit.content && unit.type !== 'EXTERNAL_LINK' 
+                            ? `Content: ${unit.content.substring(0,100)}${unit.content.length > 100 ? '...' : ''}` 
+                            : (unit.type === 'EXTERNAL_LINK' ? unit.content : null)}
                           primaryTypographyProps={{ fontWeight: 'medium' }}
                         />
-                        {/* TODO: Add action buttons for unit (e.g., view, edit, delete based on role) */}
                       </ListItem>
                     ))}
                   </List>

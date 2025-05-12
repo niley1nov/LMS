@@ -1,74 +1,92 @@
 // src/components/CreateCourseForm.jsx
-import React, { useState, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CoursesContext } from '../context/CoursesContext.jsx';
-import { AuthContext } from '../context/AuthContext.jsx'; // To ensure user is logged in
+// 1. Import Redux hooks and actions
+import { useDispatch, useSelector } from 'react-redux';
+import { createNewCourse, fetchUserCourses, clearCoursesError } from '../redux/coursesSlice'; // Assuming fetchUserCourses is the action to refresh
+import { clearAuthError } from '../redux/authSlice'; // To clear any auth errors if relevant
 
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import Alert from '@mui/material/Alert'; // For displaying errors
-import CircularProgress from '@mui/material/CircularProgress'; // For loading state
-
-const API_URL = process.env.REACT_APP_API_URL;
+import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
 
 export default function CreateCourseForm() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [error, setError] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  
+  // Local error for form validation, Redux error for API submission
+  const [formError, setFormError] = useState(null);
+
   const navigate = useNavigate();
-  const { refreshCourses } = useContext(CoursesContext);
-  const { user } = useContext(AuthContext); // Get user to ensure they are logged in
+  const dispatch = useDispatch();
+
+  // 2. Get state from Redux store
+  const { user, isAuthenticated, loading: authLoading } = useSelector((state) => state.auth);
+  const { loading: coursesSubmitting, error: coursesError } = useSelector((state) => state.courses);
+
+  // Clear errors when component mounts or user changes
+  useEffect(() => {
+    dispatch(clearCoursesError());
+    dispatch(clearAuthError()); // If auth errors could affect this form
+    setFormError(null);
+  }, [dispatch, user]);
+
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError(null); // Clear previous errors
+    setFormError(null); // Clear local form errors
+    dispatch(clearCoursesError()); // Clear previous API submission errors
 
-    if (!name.trim()) {
-      setError("Course name is required.");
+    if (!isAuthenticated) {
+      setFormError("You must be logged in to create a course.");
       return;
     }
 
-    setSubmitting(true);
+    if (!name.trim()) {
+      setFormError("Course name is required.");
+      return;
+    }
 
+    // Dispatch the createNewCourse thunk
     try {
-      const response = await fetch(`${API_URL}/courses`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, description }),
-        credentials: 'include', // Important for sending session cookies
-      });
-
-      const responseData = await response.json(); // Try to parse JSON regardless of response.ok
-
-      if (!response.ok) {
-        // Use error detail from backend if available, otherwise a generic message
-        throw new Error(responseData.detail || `Error: ${response.status} ${response.statusText}`);
+      const resultAction = await dispatch(createNewCourse({ name, description }));
+      if (createNewCourse.fulfilled.match(resultAction)) {
+        // Successfully created course
+        // Optionally, refresh the main courses list
+        if (isAuthenticated) { // Ensure user is still authenticated before fetching their courses
+            dispatch(fetchUserCourses());
+        }
+        navigate('/'); // Navigate to home page after successful creation
+      } else {
+        // Error handled by extraReducers, coursesError will be set in Redux state
+        // If resultAction.payload contains a specific message, it's already in coursesError
+        // setFormError(resultAction.payload || "Failed to create course."); // Or rely on coursesError from Redux
       }
-      
-      // Successfully created course
-      await refreshCourses(); // Refresh the courses list in the context
-      navigate('/'); // Navigate to home page after successful creation
-
     } catch (err) {
-      setError(err.message || "An unexpected error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+      // This catch block might not be strictly necessary if createNewCourse.rejected handles all errors
+      // and sets them in the Redux state.
+      console.error("Dispatch createNewCourse error:", err);
+      // setFormError("An unexpected error occurred during submission."); // Or rely on coursesError
     }
   };
 
-  // If no user, ideally this page shouldn't be accessible or should show a message.
-  // Route protection is a more robust way to handle this.
-  if (!user) {
+  // Handle auth loading state
+  if (authLoading) {
+    return (
+        <Container maxWidth="sm" sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+            <CircularProgress />
+        </Container>
+    );
+  }
+
+  if (!isAuthenticated) { // Check isAuthenticated instead of just user
     return (
         <Container maxWidth="sm" sx={{ mt: 4 }}>
             <Alert severity="warning">You must be logged in to create a course.</Alert>
+            {/* Optionally, add a button to navigate to a login page */}
         </Container>
     );
   }
@@ -90,7 +108,8 @@ export default function CreateCourseForm() {
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
-          error={!!(error && error.toLowerCase().includes("name"))} // Basic error highlighting
+          error={!!(formError && formError.toLowerCase().includes("name"))}
+          helperText={ (formError && formError.toLowerCase().includes("name")) ? formError : "" }
         />
         <TextField
           margin="normal"
@@ -105,9 +124,10 @@ export default function CreateCourseForm() {
           onChange={(e) => setDescription(e.target.value)}
         />
         
-        {error && (
+        {/* Display local form errors or API submission errors from Redux state */}
+        {(formError || coursesError) && (
           <Alert severity="error" sx={{ mt: 2, mb: 1 }}>
-            {error}
+            {formError || coursesError}
           </Alert>
         )}
 
@@ -116,9 +136,9 @@ export default function CreateCourseForm() {
           fullWidth
           variant="contained"
           sx={{ mt: 3, mb: 2 }}
-          disabled={submitting}
+          disabled={coursesSubmitting === 'pending' || authLoading}
         >
-          {submitting ? <CircularProgress size={24} color="inherit" /> : 'Create Course'}
+          {coursesSubmitting === 'pending' ? <CircularProgress size={24} color="inherit" /> : 'Create Course'}
         </Button>
       </Box>
     </Container>
