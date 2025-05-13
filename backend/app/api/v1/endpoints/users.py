@@ -5,9 +5,9 @@ from typing import List, Optional
 
 from app.db.session import get_db_session
 from app.models.user import User as UserModel
-from app.schemas.user_schemas import UserOut, UserUpdate # Use appropriate Pydantic schemas
-from app.api import deps # Your API dependencies
-from app.services.user_service import user_service # User service layer
+from app.schemas.user_schemas import UserOut, UserUpdate 
+from app.api import deps
+from app.services.user_service import user_service
 # from app.models.enums import UserRoleEnum # If using for role checks
 
 router = APIRouter()
@@ -16,7 +16,14 @@ router = APIRouter()
 # If you want a more detailed profile for /me that might differ from a generic UserOut,
 # you could create a specific schema for it.
 
-@router.get("/{user_id}", response_model=UserOut, summary="Get user by ID")
+@router.get("/me", response_model=UserOut, summary="Get current user")
+async def read_users_me(
+    current_user: UserModel = Depends(deps.get_current_active_user)
+):
+    print(f"DEBUG: GET /api/v1/users/me endpoint hit by user: {current_user.email if current_user else 'None'}")
+    return current_user
+
+@router.get("/{user_id:int}", response_model=UserOut, summary="Get user by ID")
 async def read_user_by_id(
     user_id: int,
     db: AsyncSession = Depends(get_db_session),
@@ -119,4 +126,3 @@ async def delete_user_endpoint(
     except Exception as e:
         # Log e
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error deleting user.")
-

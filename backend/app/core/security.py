@@ -26,23 +26,9 @@ COOKIE_HTTPONLY = True
 # If SameSite=None, Secure attribute MUST be True.
 COOKIE_SAMESITE = "None" # Explicitly set to "None"
 
-if COOKIE_SAMESITE == "None" and not COOKIE_SECURE:
-    # This should not happen with COOKIE_SECURE = True above, but good to have a check.
-    print("CRITICAL CONFIGURATION WARNING: SameSite='None' requires Secure=True. Cookies may not be sent correctly.")
-    # In a real scenario, you might want to raise an error or default COOKIE_SAMESITE to "Lax"
-    # Forcing Lax if misconfigured:
-    # COOKIE_SAMESITE = "Lax"
-
 COOKIE_MAX_AGE = ACCESS_TOKEN_EXPIRE_MINUTES * 60 # In seconds
 COOKIE_PATH = "/"
 COOKIE_DOMAIN = None # For localhost, None is correct. For production, set your domain if needed.
-
-print(f"--- Cookie Settings Initialized ---")
-print(f"COOKIE_SECURE: {COOKIE_SECURE}")
-print(f"COOKIE_HTTPONLY: {COOKIE_HTTPONLY}")
-print(f"COOKIE_SAMESITE: {COOKIE_SAMESITE}")
-print(f"COOKIE_MAX_AGE: {COOKIE_MAX_AGE}")
-print(f"---------------------------------")
 
 
 def create_access_token(

@@ -30,7 +30,7 @@ __pycache__/
 # ---- Project-wide: ignore all real env files ----
 **/.env*
 # But keep the example templates
-!**/.env.production.example
-!**/.env.development.example
+!**/.env.example
+!**/.env.example
 
 /certs/
