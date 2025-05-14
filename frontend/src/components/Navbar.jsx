@@ -1,9 +1,18 @@
 // src/components/Navbar.jsx
 import React, { useState } from "react";
-import { GoogleOAuthProvider, GoogleLogin, googleLogout } from "@react-oauth/google";
-import { useDispatch, useSelector } from "react-redux";
-import { loginWithGoogle, logoutUser } from "../redux/authSlice";
-import { useNavigate, Link as RouterLink } from "react-router-dom"; // Import useNavigate
+import {
+  GoogleOAuthProvider,
+  GoogleLogin,
+  googleLogout,
+} from "@react-oauth/google";
+import { useDispatch } from "react-redux";
+import {
+  api,
+  useGetCurrentUserQuery,
+  useLoginWithGoogleMutation,
+  useLogoutUserMutation,
+} from "../redux/apiSlice";
+import { useNavigate, Link as RouterLink } from "react-router-dom";
 
 import ProfileDropdown from "./ProfileDropdown.jsx";
 import AppBar from "@mui/material/AppBar";
@@ -16,28 +25,39 @@ import Avatar from "@mui/material/Avatar";
 import CircularProgress from "@mui/material/CircularProgress";
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
-
 if (!GOOGLE_CLIENT_ID) {
-  console.error("ERROR: REACT_APP_GOOGLE_CLIENT_ID is not defined. Google Login will not work.");
+  console.error(
+    "ERROR: REACT_APP_GOOGLE_CLIENT_ID is not defined. Google Login will not work."
+  );
 }
 
 export default function Navbar({ sidebarOpen, onToggleSidebar }) {
-  const dispatch = useDispatch();
-  const navigate = useNavigate(); // Initialize useNavigate
-  const { user, isAuthenticated, loading: authLoading } = useSelector((state) => state.auth);
-
+  const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const menuOpen = Boolean(anchorEl);
+  const dispatch = useDispatch();
+
+  // RTK Query hooks
+  const {
+    data: user,
+    isLoading: authLoading,
+    isError: authError,
+  } = useGetCurrentUserQuery();
+  const isAuthenticated = Boolean(user) && !authError;
+
+  const [loginWithGoogle, { isLoading: loginLoading }] =
+    useLoginWithGoogleMutation();
+  const [logoutUser] = useLogoutUserMutation();
 
   const handleGoogleLoginSuccess = async (credentialResponse) => {
     if (credentialResponse.credential) {
       try {
-        await dispatch(loginWithGoogle(credentialResponse.credential)).unwrap();
+        await loginWithGoogle(credentialResponse.credential).unwrap();
       } catch (error) {
         console.error("Backend login failed after Google sign-in:", error);
       }
     } else {
-      console.error("Google login success but no credential received.");
+      console.error("Google login succeeded but no credential received.");
     }
   };
 
@@ -48,28 +68,29 @@ export default function Navbar({ sidebarOpen, onToggleSidebar }) {
   const handleMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
   };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
+  const handleMenuClose = () => setAnchorEl(null);
 
   const handleLogout = async () => {
     try {
-      await dispatch(logoutUser()).unwrap(); // Dispatch and await the thunk
-      googleLogout(); // Clear Google's session state
-      handleMenuClose();
-      navigate('/'); // Navigate to home page after successful logout
+      await logoutUser().unwrap();
     } catch (error) {
       console.error("Logout process failed:", error);
-      // Still attempt to clear local state and navigate even if backend call fails
-      googleLogout();
-      handleMenuClose();
-      navigate('/');
     }
+    googleLogout();
+    dispatch(api.util.resetApiState());
+    handleMenuClose();
+    navigate("/");
   };
 
   return (
-    <AppBar position="fixed" sx={{ height: 60, justifyContent: "center", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+    <AppBar
+      position="fixed"
+      sx={{
+        height: 60,
+        justifyContent: "center",
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+      }}
+    >
       <Toolbar sx={{ minHeight: 60, px: { xs: 1, sm: 2 } }}>
         <IconButton
           edge="start"
@@ -87,28 +108,32 @@ export default function Navbar({ sidebarOpen, onToggleSidebar }) {
           to="/"
           sx={{
             flexGrow: 1,
-            textAlign: { xs: 'left', sm: 'center' },
-            color: 'inherit',
-            textDecoration: 'none',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            textAlign: { xs: "left", sm: "center" },
+            color: "inherit",
+            textDecoration: "none",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
           LMS Platform
         </Typography>
 
         <Box sx={{ minWidth: 50 }}>
-          {authLoading === 'pending' ? (
+          {authLoading ? (
             <CircularProgress color="inherit" size={24} />
-          ) : user && isAuthenticated ? (
+          ) : isAuthenticated ? (
             <IconButton color="inherit" onClick={handleMenuOpen} size="small">
               <Avatar sx={{ bgcolor: "secondary.main", width: 32, height: 32 }}>
-                {user.name ? user.name[0].toUpperCase() : (user.email ? user.email[0].toUpperCase() : 'U')}
+                {user.name
+                  ? user.name[0].toUpperCase()
+                  : user.email
+                  ? user.email[0].toUpperCase()
+                  : "U"}
               </Avatar>
             </IconButton>
           ) : (
-            <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID || "dummy_client_id_for_render_if_missing"}>
+            <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID || ""}>
               <GoogleLogin
                 onSuccess={handleGoogleLoginSuccess}
                 onError={handleGoogleLoginError}
@@ -117,13 +142,14 @@ export default function Navbar({ sidebarOpen, onToggleSidebar }) {
                 theme="outline"
                 size="medium"
                 width="auto"
+                disabled={loginLoading}
               />
             </GoogleOAuthProvider>
           )}
         </Box>
       </Toolbar>
 
-      {user && isAuthenticated && (
+      {isAuthenticated && (
         <ProfileDropdown
           anchorEl={anchorEl}
           open={menuOpen}
