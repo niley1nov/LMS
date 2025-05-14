@@ -12,7 +12,7 @@ class UserCourse(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     course_id = Column(UUID(as_uuid=True), ForeignKey("courses.id", ondelete="CASCADE"), primary_key=True)
     role = Column(
-        SQLAlchemyEnum(UserCourseRoleEnum, name="user_course_role_enum", create_type=False), # Ensure this enum type name matches DB
+        SQLAlchemyEnum(UserCourseRoleEnum, name="user_course_role", create_type=False),
         nullable=False
     )
 
