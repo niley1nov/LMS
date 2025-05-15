@@ -152,7 +152,7 @@ class CourseService:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not identify course creator.")
         try:
             new_course = await crud_course.create_course_with_creator_enrollment(
-                db, obj_in=course_data, creator_id=creator.id, creator_role=UserCourseRole.teacher
+                db, obj_in=course_data, creator_id=creator.id, creator_role=UserCourseRole.TEACHER
             )
             if not new_course:
                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create course.")

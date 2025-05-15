@@ -34,10 +34,8 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
         try:
             print('yielding db session')
             yield session
-            # Optional: await session.commit() # If you want to commit at the end of every request by default
-                                           # Generally, explicit commits in service layers are preferred.
         except Exception:
-            await session.rollback() # Rollback in case of an exception during the request
+            await session.rollback()
             raise
         finally:
-            await session.close() # Ensure the session is closed
+            await session.close()

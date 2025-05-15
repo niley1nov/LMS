@@ -11,8 +11,9 @@ import {
   useGetCurrentUserQuery,
   useLoginWithGoogleMutation,
   useLogoutUserMutation,
+  useGetCourseByIdQuery,
 } from "../redux/apiSlice";
-import { useNavigate, Link as RouterLink } from "react-router-dom";
+import { useNavigate, Link as RouterLink, useMatch } from "react-router-dom";
 
 import ProfileDropdown from "./ProfileDropdown.jsx";
 import AppBar from "@mui/material/AppBar";
@@ -21,6 +22,8 @@ import IconButton from "@mui/material/IconButton";
 import MenuIcon from "@mui/icons-material/Menu";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
+import Breadcrumbs from "@mui/material/Breadcrumbs";
+import Link from "@mui/material/Link";
 import Avatar from "@mui/material/Avatar";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -48,6 +51,19 @@ export default function Navbar({ sidebarOpen, onToggleSidebar }) {
   const [loginWithGoogle, { isLoading: loginLoading }] =
     useLoginWithGoogleMutation();
   const [logoutUser] = useLogoutUserMutation();
+
+  // Breadcrumb: match /courses/:id
+  const courseMatch = useMatch("/courses/:id");
+  let courseName;
+  const { data: course, isLoading: courseLoading } = useGetCourseByIdQuery(
+    courseMatch?.params.id ?? "",
+    {
+      skip: !courseMatch,
+    }
+  );
+  if (courseMatch) {
+    courseName = course?.name;
+  }
 
   const handleGoogleLoginSuccess = async (credentialResponse) => {
     if (credentialResponse.credential) {
@@ -102,22 +118,33 @@ export default function Navbar({ sidebarOpen, onToggleSidebar }) {
           <MenuIcon />
         </IconButton>
 
-        <Typography
-          variant="h6"
-          component={RouterLink}
-          to="/"
-          sx={{
-            flexGrow: 1,
-            textAlign: { xs: "left", sm: "center" },
-            color: "inherit",
-            textDecoration: "none",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          LMS Platform
-        </Typography>
+        {/* ← Breadcrumb area */}
+        <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center" }}>
+          <Breadcrumbs
+            separator="›"
+            aria-label="breadcrumb"
+            sx={{ color: "inherit" }}
+          >
+            <Link
+              component={RouterLink}
+              to="/"
+              underline="hover"
+              color="inherit"
+              sx={{ fontWeight: "bold" }}
+            >
+              TV LMS
+            </Link>
+
+            {courseMatch &&
+              (courseLoading ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <Typography color="inherit" sx={{ fontWeight: 500 }}>
+                  {courseName}
+                </Typography>
+              ))}
+          </Breadcrumbs>
+        </Box>
 
         <Box sx={{ minWidth: 50 }}>
           {authLoading ? (

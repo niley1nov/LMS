@@ -12,10 +12,6 @@ from app.services.user_service import user_service
 
 router = APIRouter()
 
-# GET /users/me is already in auth.py and returns the current authenticated user.
-# If you want a more detailed profile for /me that might differ from a generic UserOut,
-# you could create a specific schema for it.
-
 @router.get("/me", response_model=UserOut, summary="Get current user")
 async def read_users_me(
     current_user: UserModel = Depends(deps.get_current_active_user)
@@ -35,13 +31,12 @@ async def read_user_by_id(
     """
     try:
         user = await user_service.get_user_by_id(db, user_id=user_id, current_user=current_user)
-        if not user: # Should be handled by service raising HTTPException, but as a safeguard
+        if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
         return user
     except HTTPException:
         raise
     except Exception as e:
-        # Log e
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error retrieving user.")
 
 
@@ -68,12 +63,10 @@ async def update_user_profile_endpoint(
     except HTTPException:
         raise
     except Exception as e:
-        # Log e
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error updating user profile.")
 
 
 @router.get("", response_model=List[UserOut], summary="List all users (Admin Only - Placeholder)")
-# @router.get("/", response_model=List[UserOut], include_in_schema=False) # Alias
 async def list_all_users(
     db: AsyncSession = Depends(get_db_session),
     current_user: UserModel = Depends(deps.get_current_active_user), # For authorization
