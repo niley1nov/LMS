@@ -6,8 +6,10 @@ import Toolbar from "@mui/material/Toolbar";
 import Navbar from "./components/Navbar.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import Home from "./components/Home.jsx";
-import CourseDetail from "./components/CourseDetail.jsx";
+import CourseDetail from "./components/CourseDetail/CourseDetail.jsx";
 import CreateCourseForm from "./components/CreateCourseForm.jsx";
+import CreateModuleForm from "./components/CreateModuleForm.jsx";
+import CreateUnitForm from "./components/CreateUnitForm.jsx";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useGetCurrentUserQuery } from "./redux/apiSlice";
 
@@ -53,12 +55,10 @@ function AppContent() {
         >
           <Routes>
             <Route path="/" element={<Home />} />
-            {/*
-              Later you can wrap the next two in a `<RequireAuth>`
-              that redirects if !isAuthenticated
-            */}
-            <Route path="/courses/new" element={<CreateCourseForm />} />
-            <Route path="/courses/:id" element={<CourseDetail />} />
+            <Route path="courses/new" element={<CreateCourseForm />} />
+            <Route path="courses/:courseId/modules/new" element={<CreateModuleForm />} />
+            <Route path="courses/:courseId/modules/:moduleId/units/new" element={<CreateUnitForm />} />
+            <Route path="courses/:courseId" element={<CourseDetail />} />
           </Routes>
         </Box>
       </Box>

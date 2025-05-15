@@ -19,7 +19,7 @@ class ModuleBase(BaseModel):
 
 # --- Schema for Creation ---
 class ModuleCreate(ModuleBase):
-    course_id: Optional[uuid.UUID] = None # Usually set via path or service logic
+    pass
 
 # --- Schema for Update ---
 class ModuleUpdate(BaseModel):

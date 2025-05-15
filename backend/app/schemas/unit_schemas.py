@@ -37,7 +37,7 @@ class UnitBase(BaseModel):
 
 # --- Schema for Creation ---
 class UnitCreate(UnitBase):
-    module_id: Optional[int] = None # Usually set via path or service logic
+    pass
 
 # --- Schema for Update ---
 class UnitUpdate(BaseModel):
@@ -50,3 +50,5 @@ class UnitUpdate(BaseModel):
 class UnitOut(UnitBase):
     id: int
     module_id: int # Include module_id for context
+    class Config:
+        from_attributes = True

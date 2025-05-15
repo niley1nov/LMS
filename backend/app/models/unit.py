@@ -12,7 +12,7 @@ class Unit(Base):
     title = Column(String(255), nullable=False)
     unit_type = Column(
         "type",
-        SQLAlchemyEnum(UnitTypeEnum, name="unit_type_enum_db", create_type=False), # Ensure this enum type name matches DB
+        SQLAlchemyEnum(UnitTypeEnum, name="unit_type_enum", create_type=False), # Ensure this enum type name matches DB
         nullable=False
     )
     content = Column(Text, nullable=True)
